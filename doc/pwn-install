@@ -197,10 +197,10 @@ rop.dump()
 str(rop)
 # '\xfc\x82\x04\x08\xef\xbe\xad\xde\x00\x00\x00\x00\xa8\x96\x04\x08'
 
-使用ROP(elf)来产生一个rop的对象，这时rop链还是空的，需要在其中添加函数。
+使用ROP(elf)来产生一个rop的对象，这时rop链还是空的，需要在其中添加函数
 
 因为ROP对象实现了getattr的功能，可以直接通过func call的形式来添加函数，
-rop.read(0, elf.bss(0x80))实际相当于rop.call('read', (0, elf.bss(0x80)))。
+rop.read(0, elf.bss(0x80))实际相当于rop.call('read', (0, elf.bss(0x80)))
 通过多次添加函数调用，最后使用str将整个rop chain dump出来就可以了。
 
     call(resolvable, arguments=()) : 添加一个调用，resolvable可以是一个符号，
