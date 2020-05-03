@@ -1,0 +1,9 @@
+version: '2'
+services:
+ pwndocker:
+   image: springpwndocker1
+   build: .
+   container_name: d0g3_fmt
+   ports:
+    - 10000:10000
+    
