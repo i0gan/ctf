@@ -28,7 +28,9 @@
 	* [vn_warmup](https://github.com/I0gan/linux-pwn/tree/master/stack/basis/vn_warmup)
 	* [welpwn](https://github.com/I0gan/linux-pwn/tree/master/stack/basis/welpwn)
 	* [HMI流水灯运行](https://github.com/I0gan/linux-pwn/tree/master/stack/basis/HMI)
-
+	* [dubblesort](https://github.com/I0gan/linux-pwn/tree/master/stack/basis/dubblesort)
+	* [format2](https://github.com/I0gan/linux-pwn/tree/master/stack/basis/format2)
+	
   * ## medium
 	* [1000levles](https://github.com/I0gan/linux-pwn/tree/master/stack/medium/1000levles)
 	* [recho](https://github.com/I0gan/linux-pwn/tree/master/stack/medium/recho)
