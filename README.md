@@ -86,13 +86,14 @@
 
   * ## basic
 
-	* [axb_pwn4](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/axb_pwn4)
-	* [babyfengshui](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/babyfengshui)
-	* [obo](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/obo)
-	* [roarctf_2019-easy_pwn](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/roarctf_2019-easy_pwn)
-	* [stokf](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/stokf)
-	* [supermarket](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/supermarket)
-	* [安恒月赛sales_office](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/sales_office)
+  * [axb_pwn4](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/axb_pwn4)
+  * [babyfengshui](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/babyfengshui)
+  * [obo](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/obo)
+  * [roarctf_2019-easy_pwn](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/roarctf_2019-easy_pwn)
+  * [stokf](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/stokf)
+  * [supermarket](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/supermarket)
+  * [安恒月赛sales_office](https://github.com/I0gan/linux-pwn/tree/master/heap/basis/sales_office)
+  * [freenote_x64](heap/basis)
 
   * ## medium
 
@@ -113,7 +114,8 @@
   * ## easy
 	* [1_oneGadget](https://github.com/I0gan/linux-pwn/tree/master/other/easy/1_oneGadget)
 	* [1-r2t3](https://github.com/I0gan/linux-pwn/tree/master/other/easy/integeroverflow/1-r2t3)
-
+* [2018_are_you_root](https://github.com/I0gan/linux-pwn/tree/master/other/easy/2018_are_you_root)
+	
   * ## basic
 	* [SecretFile](https://github.com/I0gan/linux-pwn/tree/master/other/basis/SecretFile)
 

