@@ -114,6 +114,7 @@
   * ## easy
 	* [1_oneGadget](https://github.com/I0gan/linux-pwn/tree/master/other/easy/1_oneGadget)
 	* [1-r2t3](https://github.com/I0gan/linux-pwn/tree/master/other/easy/integeroverflow/1-r2t3)
+	* [shellcode_revenge](other/easy/shellcode_revenge)
 * [2018_are_you_root](https://github.com/I0gan/linux-pwn/tree/master/other/easy/2018_are_you_root)
 	
   * ## basic
