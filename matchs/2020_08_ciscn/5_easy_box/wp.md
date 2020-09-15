@@ -1,14 +1,58 @@
+# Easy box
+
+## 来源
+2020 ciscn
+
+
+## 难度
+
+4 / 10
+
+## 保护
+
+ ```
+    Arch:     amd64-64-little
+    RELRO:    Full RELRO
+    Stack:    Canary found
+    NX:       NX enabled
+    PIE:      PIE enabled
+ ```
+
+## 简单描述
+
+只存在添加和删除功能
+
+## vul
+
+```c
+  qword_202040[v1] = size + 1;                  // vul off by one
+  qword_2020C0[v1] = malloc(size);
+  puts("content:");
+  read(0, qword_2020C0[v1], qword_202040[v1]);
+```
+
+存在off by one漏洞
+
+## 知识点
+
+io-file, fastbin attack
+
+## 思路
+
+堆布局构成fastbin 打入 `_IO_2_1_stderr + 192`处, 泄漏libc, 再次使用用fastbin 打入 malloc_hook - 0x23处修改malloc_hook, realloc调整execve参数
+
+
+
+## exp
+
+```python
 #!/usr/bin/env python
 #-*- coding:utf-8 -*-
 # Author: I0gan
 
 from pwn import *
-#from LibcSearcher import LibcSearcher
 
 #context.log_level='debug'
-#context(arch = 'i386', os = 'linux', log_level='debug')
-#context(arch = 'amd64', os = 'linux', log_level='debug')
-
 exeFile = 'easy_box'
 libFile = '/lib/x86_64-linux-gnu/libc.so.6'
 
@@ -132,3 +176,4 @@ if __name__ == '__main__':
 	
 	exploit()
 	finish()
+```
