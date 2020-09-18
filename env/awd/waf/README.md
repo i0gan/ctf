@@ -18,7 +18,7 @@
 
 ## waf原理
 
-使用创建子进程打开目标elf, 然后父进程使用ptrace监测子进程的syscall调用,  若是标准io, 那么读取io中的数据, 记录在log里, 若是危险的syscall, 也记录在log里.
+创建子进程打开目标elf, 父进程使用ptrace函数监测子进程的syscall调用,  若是标准io, 那么读取io中的数据, 记录在log里, 若是危险的syscall, 也记录在log里.
 
 
 
