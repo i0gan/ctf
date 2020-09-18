@@ -2,7 +2,7 @@
 
 ## 介绍
 
-基于https://github.com/yangshuangfu/PwnWAF做了修改
+基于[PwnWAF](https://github.com/yangshuangfu/PwnWAF)做了改进
 
 修复bug:
 
