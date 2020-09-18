@@ -1,0 +1,5 @@
+#! /bin/sh
+
+chmod 111 pwn
+chmod 111 elf
+chmod 111 show_waf
