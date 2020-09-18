@@ -1,8 +1,24 @@
 # AWD PWN WAF
 
+## 介绍
+
+基于https://github.com/yangshuangfu/PwnWAF做了修改
+
+修复bug:
+
+1. 被监视的程序若内存出现错误导致崩溃, 父进程会变成僵尸进程
+2. 无法抓取包含'\x0a'或者'\x00'的payload
+
+优化:
+
+1. 对log输出进行人性话排版, 对单个输入与输出进行单独分割排版, 方便对流量重用
+2. 添加危险syscall调用的检测
 
 
-waf原理, 创建子进程打开目标elf, 然后父进程使用ptrace监测子进程的syscall调用,  若是标准io, 那么读取io中的数据, 记录在log里, 若是危险的syscall, 也记录在log里.
+
+## waf原理
+
+使用创建子进程打开目标elf, 然后父进程使用ptrace监测子进程的syscall调用,  若是标准io, 那么读取io中的数据, 记录在log里, 若是危险的syscall, 也记录在log里.
 
 
 
