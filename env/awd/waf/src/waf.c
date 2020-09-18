@@ -57,7 +57,6 @@ enum sys_type {
 
 
 int state = -1;
-int is_cut = 1;
 
 void write_log(const char *str) {
 	int fd = open(LOG_PATH, O_CREAT|O_APPEND|O_WRONLY, 0666);
@@ -66,32 +65,24 @@ void write_log(const char *str) {
 }
 
 void interactive_log(pid_t pid, char* addr, int size, enum sys_type type){
-
 	int fd = open(LOG_PATH, O_CREAT|O_APPEND|O_WRONLY, 0666);
-	int i = 0,j = 0;
 	char data;
 	char* buf = (char*)malloc(size + 1);
-
-	for(i = 0; i < size; i++){
+	for(int i = 0; i < size; i++){
 		data = ptrace(PTRACE_PEEKDATA, pid, addr + i, NULL);
 		buf[i] = data;
 	}
-
 	if(state != type) {
 		if(type == READ)
 			write(fd, READ_SHOW_STR, sizeof(READ_SHOW_STR) - 1);
 		else
 			write(fd, WRITE_SHOW_STR, sizeof(WRITE_SHOW_STR) - 1);
 		state = type;
-		is_cut = 1;
 	}
-
 	write(fd, buf, size);
 	close(fd);
 	free(buf);
-	is_cut = 0;
 }
-
 
 int main(int argc, char* argv[]){
 	setvbuf(stdin,0,2,0);
@@ -106,7 +97,7 @@ int main(int argc, char* argv[]){
 	int sys_num;
 	enum sys_type sys_status;
 
-	// we use child process to exec 
+	// use child process to exec 
 	if(pid == 0){
 		ptrace(PTRACE_TRACEME, 0, NULL, NULL);
 		argv[1] = ELF_PATH;
@@ -124,7 +115,7 @@ int main(int argc, char* argv[]){
 			wait(&status);
 			if(WIFEXITED(status) || ERROR_EXIT(status))
 				break;
-			// get rax to ensure witch syscall
+
 			ptrace(PTRACE_GETREGS, pid, NULL, &regs);
 #if ARCH == 64
 			sys_num = regs.orig_rax;
