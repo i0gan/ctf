@@ -2,7 +2,7 @@
  * orignal author: yangshuangfu
  * github link: https://github.com/yangshuangfu/PwnWAF
  * modified author: i0gan
- * github link: https://github.com/i0gan/pwn/env/awd/waf/
+ * github link: https://github.com/i0gan/pwn/tree/master/env/awd/waf
  * modified time  : 2020-09-18
  */
 
