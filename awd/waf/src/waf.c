@@ -55,7 +55,6 @@ enum sys_type {
 	x == __NR_clone  || \
 	x == __NR_execve
 
-
 int state = -1;
 
 void write_log(const char *str) {

@@ -1,6 +1,11 @@
 
 
-OWASP ZSC Shellcoder
+# Pwn环境搭建
+
+
+
+## OWASP ZSC Shellcoder
+
 安装
 方法一
 进入github下载页:https://github.com/Ali-Razmjoo/OWASP-ZSC 进行下载
@@ -147,7 +152,7 @@ sh.interactive()  直接进行交互，相当于回到shell的模式，在取得
     push 0x732f2f2f
     push 0x6e69622f
 ...
-结合asm可以可以得到最终的pyaload。
+结合asm可以可以得到最终的pyaload
 
 from pwn import *
 context(os='linux',arch='amd64')
@@ -158,7 +163,7 @@ from pwn import *
 shellcode = asm(shellcraft.amd64.linux.sh())
 
 
-除了直接执行sh之外，还可以进行其它的一些常用操作例如提权、反向连接等等。
+除了直接执行sh之外，还可以进行其它的一些常用操作例如提权、反向连接等等
 5.ELF文件操作
 
 >>> e = ELF('/bin/cat')
@@ -201,7 +206,7 @@ str(rop)
 
 因为ROP对象实现了getattr的功能，可以直接通过func call的形式来添加函数，
 rop.read(0, elf.bss(0x80))实际相当于rop.call('read', (0, elf.bss(0x80)))
-通过多次添加函数调用，最后使用str将整个rop chain dump出来就可以了。
+通过多次添加函数调用，最后使用str将整个rop chain dump出来就可以了
 
     call(resolvable, arguments=()) : 添加一个调用，resolvable可以是一个符号，
     也可以是一个int型地址，
