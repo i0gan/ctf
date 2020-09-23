@@ -1,10 +1,10 @@
-# CTF PWN
+# I0gan's CTF Repositories
 
 ## Introduction
 
 [awd](./awd)
 
-[study pwn](./doc)
+[study](./doc)
 
 [Enter chanllenge list](./challenges)
 
