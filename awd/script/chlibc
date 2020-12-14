@@ -1,0 +1,15 @@
+#! /bin/bash
+if [[ $# < 2 ]]; then
+	echo "Usage: ./chlibc [your_elf] [libc_version]"
+	exit
+fi
+echo $2
+# 2.19 2.23 2.27 2.29 2.30
+libc="2.29"
+arch="64"
+file="pwn"
+libc=$2
+file=$1
+echo "change $file to libc $libc"
+patchelf --set-interpreter /glibc/$libc/$arch/lib/ld-linux-x86-64.so.2 $file
+echo "finished!"
