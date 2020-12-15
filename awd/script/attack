@@ -3,9 +3,11 @@
 # Author: i0gan
 
 attack_times=10000
-round_wait_time=500
-wait_submit_time=60
+round_wait_time=540
+wait_submit_time=20
 log_file="logs"
+run_time=3m
+next_attack_time=0.2
 
 log() {
 	t=`date "+%H:%M:%S"`
@@ -18,8 +20,8 @@ log() {
 attack() {
 	rm flags
 	for line in `cat hosts`;do
-		timeout --foreground 3m python ./exp $line &
-		sleep 1
+		timeout --foreground $run_time python ./exp $line &
+		sleep $next_attack_time
 	done
 	echo -e "\x1b[47;30m Waitting $wait_submit_time s to submit flag\x1b[0m"
 	sleep $wait_submit_time
