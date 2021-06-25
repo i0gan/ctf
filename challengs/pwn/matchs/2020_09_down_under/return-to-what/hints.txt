@@ -1,3 +1,0 @@
-Hint 1: What is ROP?
-
-Hint 2: You will first have to leak something to get anywhere.

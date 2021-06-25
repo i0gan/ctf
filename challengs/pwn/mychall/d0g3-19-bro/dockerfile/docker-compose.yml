@@ -1,9 +1,0 @@
-version: '2'
-services:
- pwndocker:
-   image: springpwndocker1
-   build: .
-   container_name: d0g3_bro
-   ports:
-    - 10001:10001
-    
